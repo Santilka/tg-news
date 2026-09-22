@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+.idea/
+.vscode/
+.DS_Store
+
+# SQLite sessions and journals
+*.session
+*.session-journal
