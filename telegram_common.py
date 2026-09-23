@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from html import escape
 from pathlib import Path
 from telethon.extensions import html as tl_html
+import text_processing as tp
 
 import paramiko
 import psycopg2
@@ -374,6 +375,11 @@ async def import_publication(client, channel, entity, messages, only_new=False):
     canonical = next((m for m in messages if (m.raw_text or "").strip()), messages[0])
     text = canonical.raw_text or ""
 
+    clean_text = tp.strip_footer(text)
+    rewritten = await asyncio.to_thread(tp.rewrite_text, clean_text)
+    title = rewritten["title"] if rewritten else extract_title(clean_text)
+    description = rewritten["description"] if rewritten else extract_description(clean_text)
+
     images = []
     if not has_images:
         for message in messages:
@@ -390,9 +396,9 @@ async def import_publication(client, channel, entity, messages, only_new=False):
     pub = {
         "channel_id": channel["id"],
         "source": entity_name(entity),
-        "title": extract_title(text),
-        "description": extract_description(text),
-        "content": build_html(canonical),
+        "title": title,
+        "description": description,
+        "content": tp.clean_content(build_html(canonical)),
         "date": canonical.date,
         "url": message_url(entity, canonical.id),
         "messages": [
