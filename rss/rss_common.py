@@ -84,9 +84,10 @@ def _download_image(url):
 
 def _rehost_content_images(html, base_url):
     if not html:
-        return html
+        return html, []
 
     soup = BeautifulSoup(html, "html.parser")
+    urls = []
     for img in soup.find_all("img"):
         src = img.get("src")
         if not src:
@@ -98,10 +99,11 @@ def _rehost_content_images(html, base_url):
 
         if local_url:
             img["src"] = local_url
+            urls.append(local_url)
         else:
             img.decompose()
 
-    return str(soup)
+    return str(soup), urls
 
 
 def fetch_article(url):
@@ -120,10 +122,15 @@ def fetch_article(url):
         include_links=False,
         include_formatting=True,
     ) or ""
-    content_html = _rehost_content_images(content_html_raw, url)
+    content_html, inline_images = _rehost_content_images(content_html_raw, url)
     content_text = trafilatura.extract(html) or ""
 
-    return {"content_html": content_html, "content_text": content_text, "image_url": image_url}
+    return {
+        "content_html": content_html,
+        "content_text": content_text,
+        "image_url": image_url,
+        "inline_images": inline_images,
+    }
 
 
 def save_item(link, title, pub_date, source_name, article):
@@ -141,11 +148,20 @@ def save_item(link, title, pub_date, source_name, article):
         )
         news_id = cur.fetchone()[0]
 
+        order = 0
         if image_local:
             cur.execute(
-                'INSERT INTO news_newsimage (news_id, image, "order", created_at) VALUES (%s,%s,0,now())',
-                (news_id, image_local),
+                'INSERT INTO news_newsimage (news_id, image, "order", created_at) VALUES (%s,%s,%s,now())',
+                (news_id, image_local, order),
             )
+            order += 1
+
+        for inline_url in article.get("inline_images", []):
+            cur.execute(
+                'INSERT INTO news_newsimage (news_id, image, "order", created_at) VALUES (%s,%s,%s,now())',
+                (news_id, inline_url, order),
+            )
+            order += 1
     return news_id
 
 
